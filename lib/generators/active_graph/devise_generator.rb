@@ -17,11 +17,29 @@ module ActiveGraph
       end
 
       def inject_field_types
-        inject_into_file model_path, model_contents , after: /Neo4j::ActiveNode\n/ if model_exists?
+        class_path = if namespaced?
+          class_name.to_s.split("::")
+        else
+          [class_name]
+        end
+
+        indent_depth = class_path.size - 1
+        content = model_contents.split("\n").map { |line| "  " * indent_depth + line } .join("\n") << "\n"
+
+        inject_into_class model_path, class_path.last, content , after: /Neo4j::ActiveNode\n/ if model_exists?
       end
 
       def inject_devise_content
-        inject_into_file model_path,  migration_data , after: /Neo4j::ActiveNode\n/ if model_exists?
+        class_path = if namespaced?
+          class_name.to_s.split("::")
+        else
+          [class_name]
+        end
+
+        indent_depth = class_path.size - 1
+        content = migration_data.split("\n").map { |line| "  " * indent_depth + line } .join("\n") << "\n"
+
+        inject_into_class model_path, class_path.last, content , after: /Neo4j::ActiveNode\n/ if model_exists?
       end
 
       def migration_data
@@ -78,12 +96,12 @@ module ActiveGraph
 RUBY
       end
 
-      def rails5?
-        Rails.version.start_with? '5'
+      def rails5_and_up?
+        Rails::VERSION::MAJOR >= 5
       end
 
       def migration_version
-        if rails5?
+        if rails5_and_up?
           "[#{Rails::VERSION::MAJOR}.#{Rails::VERSION::MINOR}]"
         end
       end
